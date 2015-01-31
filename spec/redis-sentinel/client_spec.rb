@@ -130,32 +130,6 @@ describe Redis::Client do
     end
   end
 
-  context "#discover_slaves" do
-    before do
-      allow(subject).to receive(:try_next_sentinel)
-      allow(subject).to receive(:refresh_sentinels_list)
-      allow(subject).to receive(:current_sentinel).and_return(current_sentinel)
-      expect(current_sentinel).to receive(:sentinel).with("slaves", "master").and_return(slaves_reply)
-
-      slaves = slaves_reply.map do |info|
-        info = Hash[*info]
-        double("Redis", :host => info['ip'], :port => info['port'])
-      end
-
-      allow(Redis).to receive(:new).and_return(*slaves)
-    end
-
-    it "discovers slaves correctly" do
-      slaves = subject.slaves
-
-      expect(slaves.size).to eq 3
-      3.times do |i|
-        expect(slaves[i].host).to eq "slave-#{i.to_s}"
-        expect(slaves[i].port.to_i).to eq (6379 + i)
-      end
-    end
-  end
-
   context "#auto_retry_with_timeout" do
     context "no failover reconnect timeout set" do
       subject { Redis::Client.new }

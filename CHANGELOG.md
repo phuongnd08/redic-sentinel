@@ -1,5 +1,8 @@
 # CHANGELOG
 
+## 1.5.1
+  Now for redic
+
 ## 1.5.0
 
 * Subscribe +switch-master again

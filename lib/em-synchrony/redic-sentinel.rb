@@ -1,7 +1,7 @@
-require 'redis/connection/synchrony' unless defined? Redis::Connection::Synchrony
-require 'redis-sentinel'
+require 'redic/connection/synchrony' unless defined? Redic::Connection::Synchrony
+require 'redic-sentinel'
 
-class Redis::Client
+class Redic::Client
   class_eval do
     private
     def sleep(seconds)
