@@ -11,12 +11,9 @@ master server.
 
 Add this line to your application's Gemfile:
 
-    gem 'redis-sentinel'
+    gem 'redic-sentinel'
 
-If you are using redis-server less than 2.6.10, please use
-redis-sentinel 1.3.0
-
-    gem 'redis-sentinel', '~> 1.3.0'
+We need redis-server 2.6.10 or later
 
 And then execute:
 
@@ -24,23 +21,19 @@ And then execute:
 
 Or install it yourself as:
 
-    $ gem install redis-sentinel
+    $ gem install redic-sentinel
 
 ## Usage
 
 Specify the sentinel servers and master name
 
-    Redis.new(master_name: "master1", sentinels: [{host: "localhost", port: 26379}, {host: "localhost", port: 26380}])
+    Redic.new(url, timeout, master_name: "master1", sentinels: [{host: "localhost", port: 26379}, {host: "localhost", port: 26380}])
 
-Sentinels can also be specified using a URI. This URI syntax is required when using Rails.config.cache_store:
 
-    config.cache_store = :redis_store, { master_name: "master1",
-                                         sentinels: ['sentinel://localhost:26379', 'sentinel://localhost:26380'] }
+After doing the above, you might still see `#<Redic client v3.1.0 for redis://localhost:6379/0>`.
+This is fine because redic-sentinel will only try to connect when it is actually required.
 
-After doing the above, you might still see `#<Redis client v3.1.0 for redis://localhost:6379/0>`.
-This is fine because redis-sentinel will only try to connect when it is actually required.
-
-However, if none of the sentinel servers can be reached, a Redis::CannotConnectError will be thrown.
+However, if none of the sentinel servers can be reached, a error will be thrown.
 
 There are two additional options:
 
@@ -100,7 +93,7 @@ takes less than 30 seconds.
 
 ## Authors and Contributors
 
-[https://github.com/flyerhzm/redis-sentinel/graphs/contributors](https://github.com/flyerhzm/redis-sentinel/graphs/contributors)
+[https://github.com/flyerhzm/redic-sentinel/graphs/contributors](https://github.com/flyerhzm/redic-sentinel/graphs/contributors)
 
 Please fork and contribute, any help in making this project better is appreciated!
 
@@ -108,4 +101,4 @@ This project is a member of the [OSS Manifesto](http://ossmanifesto.org/).
 
 ## Copyright
 
-Copyright @ 2012 - 2013 Richard Huang. See [MIT-LICENSE](https://github.com/flyerhzm/redis-sentinel/blob/master/MIT-LICENSE) for details
+Copyright @ 2012 - 2013 Richard Huang. See [MIT-LICENSE](https://github.com/flyerhzm/redic-sentinel/blob/master/MIT-LICENSE) for details
