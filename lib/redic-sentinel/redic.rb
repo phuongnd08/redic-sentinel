@@ -6,4 +6,8 @@ class Redic
     @client = Redic::Client.new(url, timeout, options)
     @queue = []
   end
+
+  def url
+    @client.uri.to_s
+  end
 end
