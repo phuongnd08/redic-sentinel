@@ -4,8 +4,8 @@ require 'coveralls'
 Coveralls.wear!
 
 $LOAD_PATH.unshift(File.expand_path(File.dirname(__FILE__) + "/../lib"))
-require "redis"
-require "redis-sentinel"
+require "redic"
+require "redic-sentinel"
 
 RSpec.configure do |config|
   config.filter_run :focus => true

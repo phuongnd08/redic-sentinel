@@ -1,6 +1,6 @@
 require "spec_helper"
 
-describe Redis::Client do
+describe Redic::Client do
   let(:client) { double("Client", :reconnect => true) }
   let(:current_sentinel)  { double("Redis", :client => client) }
 
@@ -20,7 +20,7 @@ describe Redis::Client do
     ]
   end
 
-  subject { Redis::Client.new(:master_name => "master", :master_password => "foobar",
+  subject { Redic::Client.new("redis://test.host:6379/", 10_000_000, :master_name => "master", :master_password => "foobar",
                               :sentinels => sentinels) }
 
   context "new instances" do
@@ -39,11 +39,12 @@ describe Redis::Client do
     end
 
     it "should not be true if not passing sentinels and master_name options" do
-      expect(Redis::Client.new).not_to be_sentinel
+      expect(Redic::Client.new("redis://test.host:6379/", 10_000_000)).not_to be_sentinel
     end
 
     it "should not be true if passing sentinels option but not master_name option" do
-      client = Redis::Client.new(
+      client = Redic::Client.new(
+        "redis://test.host:6379/", 10_000_000,
         :sentinels => [
           {:host => "localhost", :port => 26379},
           {:host => "localhost", :port => 26380}
@@ -52,12 +53,12 @@ describe Redis::Client do
     end
 
     it "should not be true if passing master_name option but not sentinels option" do
-      client = Redis::Client.new(:master_name => "master")
+      client = Redic::Client.new("redis://test.host:6379/", 10_000_000, :master_name => "master")
       expect(client).not_to be_sentinel
     end
 
     it "should be true if passing master_name, and sentinels as uri" do
-      client = Redis::Client.new(:master_name => "master",
+      client = Redic::Client.new("redis://test.host:6379/", 10_000_000, :master_name => "master",
         :sentinels => %w(sentinel://localhost:26379 sentinel://localhost:26380))
       expect(client).to be_sentinel
     end
@@ -99,32 +100,29 @@ describe Redis::Client do
     it "updates master config options" do
       expect(current_sentinel).to receive(:sentinel).with("get-master-addr-by-name", "master").and_return(["master", 8888])
       subject.discover_master
-      expect(subject.host).to eq "master"
-      expect(subject.port).to eq 8888
+      expect(subject.uri.to_s).to eq "redis://master:8888/"
     end
 
     it "selects next sentinel if failed to connect to current_sentinel" do
-      expect(current_sentinel).to receive(:sentinel).with("get-master-addr-by-name", "master").and_raise(Redis::CannotConnectError)
+      expect(current_sentinel).to receive(:sentinel).with("get-master-addr-by-name", "master").and_raise(Redis::ConnectionError)
       expect(current_sentinel).to receive(:sentinel).with("get-master-addr-by-name", "master").and_return(["master", 8888])
       subject.discover_master
-      expect(subject.host).to eq "master"
-      expect(subject.port).to eq 8888
+      expect(subject.uri.to_s).to eq "redis://master:8888/"
     end
 
     it "selects next sentinel if sentinel doesn't know" do
       expect(current_sentinel).to receive(:sentinel).with("get-master-addr-by-name", "master").and_raise(Redis::CommandError.new("IDONTKNOW: No idea"))
       expect(current_sentinel).to receive(:sentinel).with("get-master-addr-by-name", "master").and_return(["master", 8888])
       subject.discover_master
-      expect(subject.host).to eq "master"
-      expect(subject.port).to eq 8888
+      expect(subject.uri.to_s).to eq "redis://master:8888/"
     end
 
-    it "raises error if try_next_sentinel raises error" do
-      expect(current_sentinel).to receive(:sentinel).with("get-master-addr-by-name", "master").and_raise(Redis::CommandError.new("ERR: No such command"))
+    it "raises error if try_next_sentinel raises command error" do
+      expect(current_sentinel).to receive(:sentinel).with("get-master-addr-by-name", "master").and_raise(Redis::CommandError)
       expect { subject.discover_master }.to raise_error(Redis::CommandError)
     end
 
-    it "raises error if try_next_sentinel raises error" do
+    it "raises error if try_next_sentinel raises connection error" do
       expect(subject).to receive(:try_next_sentinel).and_raise(Redis::CannotConnectError)
       expect { subject.discover_master }.to raise_error(Redis::CannotConnectError)
     end
@@ -132,18 +130,18 @@ describe Redis::Client do
 
   context "#auto_retry_with_timeout" do
     context "no failover reconnect timeout set" do
-      subject { Redis::Client.new }
+      subject { Redic::Client.new("redis://test.host:6379/", 10_000_000) }
 
       it "does not sleep" do
         expect(subject).not_to receive(:sleep)
         expect {
-          subject.auto_retry_with_timeout { raise Redis::CannotConnectError }
-        }.to raise_error(Redis::CannotConnectError)
+          subject.auto_retry_with_timeout { raise Errno::ECONNREFUSED }
+        }.to raise_error(Errno::ECONNREFUSED)
       end
     end
 
     context "the failover reconnect timeout is set" do
-      subject { Redis::Client.new(:failover_reconnect_timeout => 3) }
+      subject { Redic::Client.new("redis://test.host:6379/", 10_000_000, :failover_reconnect_timeout => 3) }
 
       before(:each) do
         allow(subject).to receive(:sleep)
@@ -156,9 +154,9 @@ describe Redis::Client do
         begin
           subject.auto_retry_with_timeout do
             called_counter += 1
-            raise Redis::CannotConnectError
+            raise Errno::ECONNREFUSED
           end
-        rescue Redis::CannotConnectError
+        rescue Errno::ECONNREFUSED
         end
 
         expect(called_counter).to eq(4)
@@ -168,40 +166,31 @@ describe Redis::Client do
         allow(Time).to receive(:now).and_return(100, 101, 105)
         expect(subject).to receive(:sleep).with(0.1)
         begin
-          subject.auto_retry_with_timeout { raise Redis::CannotConnectError }
-        rescue Redis::CannotConnectError
+          subject.auto_retry_with_timeout { raise Errno::ECONNREFUSED }
+        rescue Errno::ECONNREFUSED
         end
       end
 
       it "does not catch other errors" do
         expect(subject).not_to receive(:sleep)
         expect do
-          subject.auto_retry_with_timeout { raise Redis::ConnectionError }
-        end.to raise_error(Redis::ConnectionError)
+          subject.auto_retry_with_timeout { raise "Some other error" }
+        end.to raise_error("Some other error")
       end
 
       context "configured wait time" do
-        subject { Redis::Client.new(:failover_reconnect_timeout => 3,
+        subject { Redic::Client.new("redis://test.host:6379/", 10_000_000, :failover_reconnect_timeout => 3,
                                     :failover_reconnect_wait => 0.01) }
 
         it "uses the configured wait time" do
           allow(Time).to receive(:now).and_return(100, 101, 105)
           expect(subject).to receive(:sleep).with(0.01)
           begin
-            subject.auto_retry_with_timeout { raise Redis::CannotConnectError }
-          rescue Redis::CannotConnectError
+            subject.auto_retry_with_timeout { raise Errno::ECONNREFUSED }
+          rescue Errno::ECONNREFUSED
           end
         end
       end
     end
   end
-
-  context "#disconnect" do
-    it "calls disconnect on each sentinel client" do
-      allow(subject).to receive(:current_sentinel).and_return(current_sentinel)
-      expect(client).to receive(:disconnect)
-      subject.disconnect
-    end
-  end
-
 end

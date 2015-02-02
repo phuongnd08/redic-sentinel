@@ -6,6 +6,7 @@ class Redic::Client
 
   class_eval do
     attr_reader :current_sentinel
+    attr_reader :uri
 
     def initialize_with_sentinel(url, timeout, options={})
       options = options.dup # Don't touch my options
@@ -47,7 +48,7 @@ class Redic::Client
       deadline = @failover_reconnect_timeout.to_i + Time.now.to_f
       begin
         block.call
-      rescue StandardError, Errno::EHOSTDOWN, Errno::EHOSTUNREACH => e
+      rescue Errno::ECONNREFUSED, Errno::EHOSTDOWN, Errno::EHOSTUNREACH => e
         raise if Time.now.to_f > deadline
         sleep @failover_reconnect_wait
         retry
@@ -90,12 +91,10 @@ class Redic::Client
             switch_master(master_host, master_port)
             refresh_sentinels_list
             break
-          else
-            # A null reply
           end
-        rescue StandardError => e
+        rescue Redis::CommandError => e
           raise e unless e.message.include?("IDONTKNOW")
-        rescue Errno::ECONNREFUSED, Errno::EHOSTDOWN, Errno::EHOSTUNREACH => e
+        rescue Redis::CannotConnectError, Redis::ConnectionError, Errno::EHOSTDOWN, Errno::EHOSTUNREACH => e
           # failed to connect to current sentinel server
         end
 
