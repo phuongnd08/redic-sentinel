@@ -8,8 +8,8 @@ class Redic::Client
     attr_reader :current_sentinel
     attr_reader :uri
 
-    def initialize_with_sentinel(url, timeout, options={})
-      options = options.dup # Don't touch my options
+    def initialize_with_sentinel(url, timeout, options)
+      options = options.try(:dup) || {} # Don't touch my options
       @options = options
       @master_name = fetch_option(options, :master_name)
       @master_password = fetch_option(options, :master_password)
