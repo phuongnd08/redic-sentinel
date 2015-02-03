@@ -1,4 +1,4 @@
-# Redis::Sentinel
+# Redic::Sentinel
 
 Another redis automatic master/slave failover solution for ruby by
 using built-in redis sentinel.
